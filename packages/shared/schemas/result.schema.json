@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["id", "job_id", "score_overall", "confidence", "segments", "signals", "model_meta"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "job_id": { "type": "string", "format": "uuid" },
+    "score_overall": { "type": "number", "minimum": 0, "maximum": 1 },
+    "confidence": { "type": "string", "enum": ["high", "med", "low"] },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "score"],
+        "properties": {
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "signals": {
+      "type": "object",
+      "properties": {
+        "face_coverage": { "type": "number" },
+        "audio_present": { "type": "boolean" },
+        "multi_face": { "type": "boolean" },
+        "compression_hint": { "type": "string" },
+        "duration_seconds": { "type": "number" },
+        "frames_analyzed": { "type": "integer" }
+      }
+    },
+    "model_meta": {
+      "type": "object",
+      "required": ["model_name", "version"],
+      "properties": {
+        "model_name": { "type": "string" },
+        "version": { "type": "string" },
+        "checksum": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+redis==5.2.1
+pydantic-settings==2.6.1
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+aiosqlite==0.20.0
+python-dotenv==1.0.1
+ffmpeg-python==0.2.0
+httpx==0.28.1
+opencv-python-headless==4.10.0.84
+# For FakeAVCeleb A/V model (optional)
+torch>=2.0.0
+torchvision>=0.15.0
+Pillow>=9.0.0

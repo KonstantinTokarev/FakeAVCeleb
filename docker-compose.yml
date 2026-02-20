@@ -1,0 +1,67 @@
+services:
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  api:
+    build: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/deepfake
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PATH=/data/storage
+      - JOB_TTL_HOURS=24
+    volumes:
+      - storage_data:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: ./apps/worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/deepfake
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PATH=/data/storage
+      - MAX_VIDEO_BYTES=209715200
+      - MAX_VIDEO_SECONDS=300
+    volumes:
+      - storage_data:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: deepfake
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  storage_data:

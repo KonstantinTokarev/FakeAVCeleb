@@ -1,0 +1,55 @@
+.wrapper {
+  min-height: 100vh;
+  padding: 2rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.link {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.id {
+  font-family: monospace;
+}
+
+.status_DONE { color: var(--score-low); }
+.status_FAILED { color: var(--score-high); }
+.status_CANCELED { color: var(--text-muted); }
+.status { color: var(--text); }

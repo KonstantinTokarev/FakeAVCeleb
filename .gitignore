@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Data / storage / DB
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Models / checkpoints (large binary files)
+FakeAVCeleb/
+*.pt
+*.pth
+*.onnx
+*.h5
+models/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.pnpm-store/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+.dockerignore
+
+# Logs
+*.log

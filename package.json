@@ -1,0 +1,18 @@
+{
+  "name": "deepfake-detector",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "build:web": "pnpm --filter web build",
+    "build:shared": "pnpm --filter shared build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
