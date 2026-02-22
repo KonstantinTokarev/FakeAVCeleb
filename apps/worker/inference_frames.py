@@ -97,7 +97,6 @@ def run_frame_classifier(
     frame_paths: List[str],
     duration_seconds: float,
     window_seconds: float = 5.0,
-    use_resnet: bool = True,  # kept for API compatibility
 ) -> Tuple[float, List[float], List[dict], List[dict]]:
     """
     Run CommunityForensics ViT on every frame.

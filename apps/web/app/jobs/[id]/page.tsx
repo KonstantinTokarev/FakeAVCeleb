@@ -31,6 +31,8 @@ export default function JobPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let interval: ReturnType<typeof setInterval>;
+
     const fetchJob = async () => {
       try {
         const res = await fetch(`${API_URL}/api/jobs/${id}`);
@@ -43,6 +45,7 @@ export default function JobPage() {
         if (!cancelled) {
           setJob(data);
           if (data.status === "DONE" && data.result_id) {
+            clearInterval(interval);
             router.replace(`/jobs/${id}/result`);
             return;
           }
@@ -57,7 +60,7 @@ export default function JobPage() {
     };
 
     fetchJob();
-    const interval = setInterval(fetchJob, 2000);
+    interval = setInterval(fetchJob, 2000);
     return () => {
       cancelled = true;
       clearInterval(interval);

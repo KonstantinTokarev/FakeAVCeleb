@@ -21,6 +21,9 @@ async def init_db():
 
 async def _migrate(conn):
     """Add new columns to existing tables without dropping data."""
+    import logging
+    from sqlalchemy import text as sa_text
+    log = logging.getLogger(__name__)
     migrations = [
         "ALTER TABLE results ADD COLUMN IF NOT EXISTS verdict VARCHAR(32)",
         "ALTER TABLE results ADD COLUMN IF NOT EXISTS sub_scores JSON",
@@ -29,10 +32,15 @@ async def _migrate(conn):
     ]
     for sql in migrations:
         try:
-            await conn.execute(__import__("sqlalchemy").text(sql))
-        except Exception:
-            # SQLite doesn't support IF NOT EXISTS on ALTER TABLE; ignore errors there
-            pass
+            await conn.execute(sa_text(sql))
+        except Exception as exc:
+            msg = str(exc).lower()
+            # SQLite raises OperationalError for columns that already exist;
+            # PostgreSQL uses IF NOT EXISTS so this branch is rarely hit there.
+            if "already exists" in msg or "duplicate column" in msg:
+                pass
+            else:
+                log.warning("Migration skipped (%s): %s", sql, exc)
 
 
 async def get_db():

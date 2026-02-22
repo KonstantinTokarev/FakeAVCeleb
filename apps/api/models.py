@@ -1,7 +1,6 @@
-from sqlalchemy import Column, String, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.sql import func
-from uuid import uuid4
 import uuid
 
 from .database import Base

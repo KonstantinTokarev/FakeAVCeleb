@@ -1,103 +1,131 @@
 # Deepfake Detector
 
-A web app that analyzes a **video from a link or upload** and returns a **deepfake likelihood score**, **confidence**, and **flagged timestamps**, using **audio-visual (A/V) consistency** (multimodal fusion), inspired by research such as [DigiShield / DigiFakeAV](https://arxiv.org/abs/2505.16512).
+A web app that analyzes a **video from a link or upload** and returns a **deepfake likelihood score**, **confidence level**, and **flagged timestamps** using a Smart 4-Step multimodal detection pipeline.
 
-## Product summary
+## How it works
 
-- **Input:** Paste a public video URL or upload a file (MP4, MOV, WebM). Optional: analyze first N seconds (default 60).
-- **Output:** Overall score (0–100), confidence (High/Med/Low), timeline of suspicious segments, and reliability notes (face coverage %, audio present, etc.).
-- **Processing:** Async job queue (Redis), worker pipeline: fetch → preprocess (ffmpeg) → face detection → inference → report.
+1. **Video type classification** — Automatically identifies what kind of video it is (face swap, talking head, AI-generated, multi-person, cinematic, animation, real person).
+2. **Type-aware model selection** — Routes the video to the best combination of detectors for that type.
+3. **Inference passes:**
+   - CLIP ViT-L/14 A/V consistency (face-swap / talking-head deepfakes)
+   - CommunityForensics-DeepfakeDet-ViT (binary frame-level AI artifact detection)
+   - Optical flow + flicker + texture temporal analysis
+   - Wav2Vec2-large audio deepfake detection (voice cloning / TTS)
+4. **Plain-English explanation** — Results explained for non-technical users.
 
 ## Repo structure
 
-- `apps/web` — Next.js frontend (landing, processing, results, error screens)
-- `apps/api` — FastAPI backend (jobs API, upload, SSRF-safe URL validation)
-- `apps/worker` — Python pipeline (queue consumer, download, ffmpeg, face detection, inference)
-- `packages/shared` — TypeScript types, error codes, constants (and JSON schemas for contracts)
+```
+apps/
+  web/      Next.js 14 frontend
+  api/      FastAPI backend (jobs, upload, SSRF-safe URL validation)
+  worker/   Python ML pipeline (async job consumer)
+packages/
+  shared/   TypeScript types and constants
+```
 
-**Using a real A/V model:** The worker uses a baseline (placeholder) scorer by default. You can plug in a real audio-visual deepfake model (e.g. DigiShield-style) by implementing the interface in `apps/worker/inference_av.py` and setting `AV_MODEL_ENABLED=true`. See **[docs/AV_MODEL.md](docs/AV_MODEL.md)** for the exact contract and steps.
-
-## Quick start (local)
+## Local development
 
 ### Prerequisites
 
-- Node 18+, pnpm
-- Python 3.12+
-- Redis
-- ffmpeg (for worker)
-- (Optional) Docker for full stack
+- Docker & Docker Compose (recommended)
+- Or: Node 20+, pnpm, Python 3.12+, Redis, ffmpeg
 
-### 1. API
-
-From repo root (so API and worker share the same `./data`):
+### With Docker (recommended)
 
 ```bash
-cd apps/api
-python -m venv .venv
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
-cd ../..
-mkdir -p data
-# Optional: copy .env.example to .env and set DATABASE_URL, REDIS_URL, STORAGE_PATH
-PYTHONPATH=apps uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
+# 1. Create your env file
+cp .env.example .env
+# Edit .env and set POSTGRES_PASSWORD and DATABASE_URL
 
-### 2. Worker
-
-From repo root (same `./data` and DB as API):
-
-```bash
-cd apps/worker
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ../..
-# Use same DATABASE_URL and REDIS_URL as API
-PYTHONPATH=apps python -m worker.run
-```
-
-### 3. Web
-
-```bash
-pnpm install
-pnpm build:shared
-pnpm dev:web
-```
-
-Set `NEXT_PUBLIC_API_URL=http://localhost:8000` if needed. Open [http://localhost:3000](http://localhost:3000).
-
-### 4. With Docker
-
-From repo root:
-
-```bash
+# 2. Build and start
 docker compose up --build
 ```
 
-API: http://localhost:8000  
-Web: run separately with `pnpm dev:web` and set `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+- Web: http://localhost:3000
+- API: http://localhost:8000
+- API docs: http://localhost:8000/docs
 
-## API (MVP)
+### Without Docker
 
-- `POST /api/jobs` — Create job (body: `input_type`, `input_url?`, `options?`). Returns `job_id`, `status`.
-- `POST /api/jobs/{job_id}/upload` — Multipart file upload for upload jobs.
-- `GET /api/jobs/{job_id}` — Job status and progress.
-- `GET /api/jobs/{job_id}/result` — Result (score, confidence, segments, signals).
+```bash
+# Terminal 1 — API
+cd apps/api && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd ../..
+PYTHONPATH=apps uvicorn api.main:app --reload --port 8000
 
-## Error codes
+# Terminal 2 — Worker
+cd apps/worker && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd ../..
+PYTHONPATH=apps python -m worker.run
 
-`URL_INVALID`, `URL_BLOCKED_SSRF`, `DOWNLOAD_FAILED`, `FORMAT_UNSUPPORTED`, `TOO_LARGE`, `TOO_LONG`, `NO_AUDIO`, `NO_FACE_DETECTED`, `MULTIPLE_FACES`, `INFERENCE_FAILED`, `INTERNAL_ERROR`, `JOB_NOT_FOUND`, `JOB_CANCELED`.
+# Terminal 3 — Web
+pnpm install && pnpm dev:web
+```
 
-## Development phases
+## Production deployment
 
-- **Phase 0–1:** Repo, API skeleton, worker dummy pipeline, frontend screens ✅
-- **Phase 2:** Upload + storage ✅
-- **Phase 3:** SSRF-safe link ingestion (URL validation + safe download in worker)
-- **Phase 4:** Preprocessing (ffmpeg trim, audio 16 kHz mono, frame sampling)
-- **Phase 5:** Face detection/tracking, face coverage %, multi-face
-- **Phase 6:** Model inference (A/V baseline + visual-only fallback), segments + timeline
-- **Phase 7:** Error mapping, progress, rate limiting, admin page
-- **Phase 8:** Deployment (S3, Postgres, Redis, secrets)
+### 1. Set environment variables
+
+Copy `.env.example` to `.env` and configure:
+
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `POSTGRES_PASSWORD` | Postgres root password | Yes |
+| `REDIS_URL` | Redis connection string | Yes |
+| `ALLOWED_ORIGINS` | Comma-separated frontend URLs for CORS | Yes |
+| `NEXT_PUBLIC_API_URL` | Public URL of the API (used at build time by Next.js) | Yes |
+| `STORAGE_PATH` | Where uploaded/downloaded files are stored | No (default `/data/storage`) |
+| `JOB_TTL_HOURS` | Hours before jobs are cleaned up | No (default 24) |
+| `MAX_UPLOAD_BYTES` | Max upload size in bytes | No (default 200 MB) |
+| `MAX_VIDEO_SECONDS` | Max video duration to process | No (default 300 s) |
+
+### 2. Deploy
+
+```bash
+docker compose up --build -d
+```
+
+Ensure the `storage_data` volume is backed by persistent storage (e.g. a mounted EBS volume or NFS share).
+
+### 3. Reverse proxy
+
+Place Nginx or Caddy in front:
+
+- `/` → web container (port 3000)
+- `/api/` → api container (port 8000)
+
+Example Caddy config:
+
+```
+yourdomain.com {
+    reverse_proxy /api/* api:8000
+    reverse_proxy /* web:3000
+}
+```
+
+### 4. Security checklist before going live
+
+- [ ] Set a strong `POSTGRES_PASSWORD` (not `postgres`)
+- [ ] Set `ALLOWED_ORIGINS` to your real domain only
+- [ ] Place the `/api/admin/jobs` endpoint behind HTTP Basic Auth in your reverse proxy (it has no auth by default)
+- [ ] Enable HTTPS (TLS termination at the reverse proxy)
+- [ ] Mount `storage_data` on persistent block storage
+- [ ] Configure log rotation / monitoring
+
+## API reference
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/jobs` | Create a job (`input_type`, `input_url?`, `options?`) |
+| `POST` | `/api/jobs/{id}/upload` | Upload video file for an upload job |
+| `GET` | `/api/jobs/{id}` | Poll job status and progress |
+| `GET` | `/api/jobs/{id}/result` | Fetch full result once `status == DONE` |
+| `GET` | `/api/admin/jobs` | List recent jobs (no auth — protect in production) |
+| `GET` | `/health` | Health check |
 
 ## License
 

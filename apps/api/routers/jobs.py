@@ -3,8 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, HttpUrl
 from typing import Literal, Optional
-import redis.asyncio as redis
-import json
+import aiofiles
 import uuid
 import os
 
@@ -89,17 +88,21 @@ async def upload_video(
 
     size = 0
     chunk_size = 1024 * 1024
-    job_dir = os.path.join(settings.storage_path, job_id)
+    job_dir = os.path.join(str(settings.storage_path), job_id)
     os.makedirs(job_dir, exist_ok=True)
     path = os.path.join(job_dir, f"upload.{ext}")
 
-    with open(path, "wb") as f:
-        while chunk := await file.read(chunk_size):
-            size += len(chunk)
-            if size > settings.max_upload_bytes:
-                os.remove(path)
-                raise HTTPException(status_code=400, detail={"error_code": "TOO_LARGE"})
-            f.write(chunk)
+    try:
+        async with aiofiles.open(path, "wb") as f:
+            while chunk := await file.read(chunk_size):
+                size += len(chunk)
+                if size > settings.max_upload_bytes:
+                    raise HTTPException(status_code=400, detail={"error_code": "TOO_LARGE"})
+                await f.write(chunk)
+    except HTTPException:
+        if os.path.exists(path):
+            os.remove(path)
+        raise
 
     job.input_filename = f"upload.{ext}"
     job.artifacts = {"video_path": path}
@@ -116,11 +119,11 @@ async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="JOB_NOT_FOUND")
 
-    steps = ["FETCHING", "PREPROCESSING", "INFERENCING", "REPORTING", "DONE"]
+    steps = ["FETCHING", "PREPROCESSING", "INFERENCING", "CLASSIFYING", "REPORTING", "DONE"]
     step = job.progress_step or job.status
     if step not in steps:
         step = job.status
-    # UPLOADING = file received, show as step 1 so UI shows "Step 1 of 5"
+    # UPLOADING = file received, show as step 1 so UI shows "Step 1 of N"
     if job.status == "UPLOADING":
         done = 1
         step = "FETCHING"  # display only; worker hasn't started yet

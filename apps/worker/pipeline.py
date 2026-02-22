@@ -110,18 +110,17 @@ async def run_pipeline(job_id: str):
                     os.path.join(job_dir, "video.mp4"),
                     settings.max_video_bytes,
                 )
-                job.artifacts = job.artifacts or {}
-                job.artifacts["video_path"] = os.path.join(job_dir, "video.mp4")
+                job.artifacts = {**(job.artifacts or {}), "video_path": os.path.join(job_dir, "video.mp4")}
             else:
-                video_path = (job.artifacts or {}).get("video_path") or os.path.join(job_dir, job.input_filename or "upload.mp4")
+                existing = job.artifacts or {}
+                video_path = existing.get("video_path") or os.path.join(job_dir, job.input_filename or "upload.mp4")
                 if not os.path.isfile(video_path):
                     job.status = "FAILED"
                     job.error_code = "INTERNAL_ERROR"
                     job.error_message = f"Uploaded file not found at {video_path}"
                     await db.commit()
                     return
-                job.artifacts = job.artifacts or {}
-                job.artifacts["video_path"] = video_path
+                job.artifacts = {**existing, "video_path": video_path}
 
             if job.input_type == "link":
                 update_status("PREPROCESSING", "PREPROCESSING", 2, 6)
@@ -154,9 +153,12 @@ async def run_pipeline(job_id: str):
                 frames_dir=frames_dir,
                 num_frames=32,
             )
-            job.artifacts["audio_path"] = preproc.get("audio_path")
-            job.artifacts["frame_paths"] = preproc.get("frame_paths", [])
-            job.artifacts["duration_seconds"] = preproc["duration_seconds"]
+            job.artifacts = {
+                **job.artifacts,
+                "audio_path": preproc.get("audio_path"),
+                "frame_paths": preproc.get("frame_paths", []),
+                "duration_seconds": preproc["duration_seconds"],
+            }
             await db.commit()
 
             frame_paths   = preproc.get("frame_paths", [])
@@ -177,7 +179,6 @@ async def run_pipeline(job_id: str):
                     frame_paths=frame_paths,
                     duration_seconds=duration_sec,
                     window_seconds=5.0,
-                    use_resnet=True,
                 )
             )
 

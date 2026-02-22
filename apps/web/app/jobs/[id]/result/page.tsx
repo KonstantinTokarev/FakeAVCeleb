@@ -376,7 +376,7 @@ export default function ResultPage() {
                       </>
                     );
                   })()}
-                  <div className={styles.subHint} style={{ marginTop: "0.5rem" }}>SigLIP2 — 3-class frame classifier. Frames must exceed Real by ≥15% to be counted as fake.</div>
+                  <div className={styles.subHint} style={{ marginTop: "0.5rem" }}>CommunityForensics-DeepfakeDet-ViT — binary frame classifier (Real / Fake). Frames with p_fake ≥ 0.75 are counted as high-confidence.</div>
                 </div>
               )}
 

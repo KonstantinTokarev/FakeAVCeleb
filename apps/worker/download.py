@@ -3,6 +3,7 @@ SSRF-safe URL validation and safe download with size and redirect limits.
 """
 from urllib.parse import urlparse
 import ipaddress
+import os
 import socket
 import httpx
 
@@ -64,18 +65,20 @@ async def download_video(url: str, dest_path: str, max_bytes: int, timeout: floa
         timeout=timeout,
     ) as client:
         total = 0
-        with open(dest_path, "wb") as f:
-            async with client.stream("GET", url) as resp:
-                if resp.status_code != 200:
-                    raise DownloadError("DOWNLOAD_FAILED", f"HTTP {resp.status_code}")
-                ct = (resp.headers.get("content-type") or "").lower()
-                if "video" not in ct and "octet-stream" not in ct:
-                    raise DownloadError("FORMAT_UNSUPPORTED", f"Unexpected content-type: {ct}")
-                async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
-                    total += len(chunk)
-                    if total > max_bytes:
-                        f.close()
-                        import os
-                        os.remove(dest_path)
-                        raise DownloadError("TOO_LARGE", "File exceeds max size")
-                    f.write(chunk)
+        try:
+            with open(dest_path, "wb") as f:
+                async with client.stream("GET", url) as resp:
+                    if resp.status_code != 200:
+                        raise DownloadError("DOWNLOAD_FAILED", f"HTTP {resp.status_code}")
+                    ct = (resp.headers.get("content-type") or "").lower()
+                    if "video" not in ct and "octet-stream" not in ct:
+                        raise DownloadError("FORMAT_UNSUPPORTED", f"Unexpected content-type: {ct}")
+                    async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise DownloadError("TOO_LARGE", "File exceeds max size")
+                        f.write(chunk)
+        except DownloadError:
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            raise
