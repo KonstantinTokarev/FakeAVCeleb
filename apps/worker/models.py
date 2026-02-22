@@ -40,3 +40,8 @@ class Result(Base):
     segments = Column(JSON, nullable=False)
     signals = Column(JSON, nullable=False)
     model_meta = Column(JSON, nullable=False)
+    # Extended report fields
+    verdict = Column(String(32), nullable=True)          # likely_fake | uncertain | likely_real
+    sub_scores = Column(JSON, nullable=True)             # {av_consistency, artifact_detection}
+    findings = Column(JSON, nullable=True)               # list[str] human-readable flags
+    flagged_frames = Column(JSON, nullable=True)         # list[{index, score, findings}]

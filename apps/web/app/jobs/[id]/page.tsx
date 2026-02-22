@@ -7,7 +7,14 @@ import styles from "../job.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-const STEPS = ["FETCHING", "PREPROCESSING", "INFERENCING", "REPORTING", "DONE"];
+const STEPS = [
+  { key: "FETCHING",       label: "Fetching video" },
+  { key: "PREPROCESSING",  label: "Preprocessing" },
+  { key: "INFERENCING",    label: "Inferencing" },
+  { key: "CLASSIFYING",    label: "Classifying video type" },
+  { key: "REPORTING",      label: "Reporting" },
+  { key: "DONE",           label: "Done" },
+];
 
 export default function JobPage() {
   const params = useParams();
@@ -87,8 +94,10 @@ export default function JobPage() {
     );
   }
 
-  const stepIndex = STEPS.indexOf(job.progress.step);
-  const currentStep = stepIndex >= 0 ? stepIndex + 1 : 0;
+  // Find active step by matching the current step key name
+  const activeIdx = STEPS.findIndex((s) => s.key === job.progress.step);
+  // For uploads the first status is "PREPROCESSING" — treat FETCHING as done in that case
+  const effectiveActive = activeIdx >= 0 ? activeIdx : 0;
 
   return (
     <div className={styles.wrapper}>
@@ -97,18 +106,26 @@ export default function JobPage() {
 
       <div className={styles.progressCard}>
         <div className={styles.steps}>
-          {STEPS.map((step, i) => (
-            <div
-              key={step}
-              className={`${styles.step} ${i < job.progress.done ? styles.stepDone : i === job.progress.done - 1 ? styles.stepActive : ""}`}
-            >
-              <span className={styles.stepNum}>{i + 1}</span>
-              <span className={styles.stepLabel}>{step.replace(/_/g, " ")}</span>
-            </div>
-          ))}
+          {STEPS.map((step, i) => {
+            const isDone   = i < effectiveActive;
+            const isActive = i === effectiveActive;
+            return (
+              <div
+                key={step.key}
+                className={`${styles.step} ${isDone ? styles.stepDone : isActive ? styles.stepActive : ""}`}
+              >
+                <span className={styles.stepNum}>
+                  {isDone ? "✓" : i + 1}
+                </span>
+                <span className={styles.stepLabel}>{step.label}</span>
+              </div>
+            );
+          })}
         </div>
         <p className={styles.progressText}>
-          Step {job.progress.done} of {job.progress.total}
+          {effectiveActive < STEPS.length - 1
+            ? `Step ${effectiveActive + 1} of ${STEPS.length - 1} — ${STEPS[effectiveActive].label}…`
+            : "Finishing up…"}
         </p>
       </div>
 

@@ -15,6 +15,24 @@ async def init_db():
     from . import models  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Idempotent schema migrations for columns added after initial deploy
+        await _migrate(conn)
+
+
+async def _migrate(conn):
+    """Add new columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE results ADD COLUMN IF NOT EXISTS verdict VARCHAR(32)",
+        "ALTER TABLE results ADD COLUMN IF NOT EXISTS sub_scores JSON",
+        "ALTER TABLE results ADD COLUMN IF NOT EXISTS findings JSON",
+        "ALTER TABLE results ADD COLUMN IF NOT EXISTS flagged_frames JSON",
+    ]
+    for sql in migrations:
+        try:
+            await conn.execute(__import__("sqlalchemy").text(sql))
+        except Exception:
+            # SQLite doesn't support IF NOT EXISTS on ALTER TABLE; ignore errors there
+            pass
 
 
 async def get_db():

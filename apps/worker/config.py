@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     storage_path: Path = Path("./data/storage")
     max_video_bytes: int = 209_715_200
     max_video_seconds: int = 300
-    # Set to "1" or "true" to use real A/V model from worker.inference_av (if implemented)
-    av_model_enabled: bool = False
+    # Set to "true" to use real A/V model (CLIP ViT-L/14, auto-downloads from HuggingFace)
+    av_model_enabled: bool = True
     # Optional: path to FakeAVCeleb repo (must contain checkpoint.pt) for video-only Xception model
     fakeavceleb_repo_dir: str = ""
 

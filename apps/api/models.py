@@ -41,3 +41,8 @@ class Result(Base):
     segments = Column(JSON, nullable=False)
     signals = Column(JSON, nullable=False)
     model_meta = Column(JSON, nullable=False)
+    # Extended report fields
+    verdict = Column(String(32), nullable=True)
+    sub_scores = Column(JSON, nullable=True)
+    findings = Column(JSON, nullable=True)
+    flagged_frames = Column(JSON, nullable=True)
