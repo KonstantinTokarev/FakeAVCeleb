@@ -41,6 +41,10 @@ _TYPE_WEIGHTS = {
     # ai_generated / animation: no real face → CLIP AV irrelevant, CommunityForensics+temporal dominate
     "ai_generated": {"av": 0.05, "siglip": 0.45, "temporal": 0.38, "audio": 0.12},
     "animation":    {"av": 0.00, "siglip": 0.35, "temporal": 0.50, "audio": 0.15},
+    # cinematic: real film/TV/broadcast — AV model may run if face visible,
+    #   CommunityForensics gets low weight (it's not trained on film grain),
+    #   temporal is a solid signal for AI artifacts, audio helps if present.
+    "cinematic":    {"av": 0.30, "siglip": 0.10, "temporal": 0.45, "audio": 0.15},
 }
 
 _TYPE_SKIP = {
@@ -50,6 +54,7 @@ _TYPE_SKIP = {
     "talking_head": set(),
     "multi_person": set(),
     "real_person":  set(),
+    "cinematic":    set(),
 }
 
 # High-confidence threshold for CommunityForensics ViT per-frame fake probability
@@ -260,7 +265,7 @@ async def run_pipeline(job_id: str):
                     )
                 )
 
-            has_audio_signal    = audio_fake_score > 0.0 and not audio_summary.get("skip")
+            has_audio_signal    = audio_present and not audio_summary.get("skip")
             has_temporal_signal = temporal_score > 0.0 and not temporal_summary.get("skip")
 
             # Apply type-aware weights, zero out unavailable signals
@@ -336,6 +341,14 @@ async def run_pipeline(job_id: str):
                 else:
                     video_type = "real_person"
                     video_type_label = "Person Video"
+            elif video_type in ("ai_generated", "animation") and verdict_key == "REAL":
+                # Content type says AI-generated but score is low — stay cautious.
+                # Override verdict to UNCERTAIN so the UI reflects ambiguity rather
+                # than claiming the video is "authentic."
+                verdict_key = "UNCERTAIN"
+                verdict     = "uncertain"
+            # cinematic: keep label as-is on any verdict — it is a neutral,
+            # accurate description of the content type.
 
             # ── Confidence ────────────────────────────────────────────────
             # Confidence = how certain we are of the verdict (not how fake it is).
@@ -391,7 +404,7 @@ async def run_pipeline(job_id: str):
                 av_score=av_score,
                 siglip_score=siglip_score,
                 temporal_score=temporal_score if has_temporal_signal else None,
-                audio_score=audio_fake_score if has_audio_signal else None,
+                audio_score=audio_fake_score if (has_audio_signal or audio_present) else None,
                 ai_frames=ai_frames,
                 deepfake_frames=deepfake_frames,
                 real_frames=real_frames,

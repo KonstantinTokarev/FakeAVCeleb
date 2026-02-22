@@ -57,7 +57,7 @@ def explain_result(
 
     # ── Verdict text ─────────────────────────────────────────────────────
     verdict_text, verdict_emoji = _verdict_text(verdict, video_type, final_score)
-    confidence_label = _confidence_label(confidence, verdict)
+    confidence_label = _confidence_label(confidence, verdict, video_type)
 
     # ── What we checked ──────────────────────────────────────────────────
     what_we_checked = _build_what_checked(
@@ -122,22 +122,35 @@ def explain_result(
 # ---------------------------------------------------------------------------
 
 def _verdict_text(verdict: str, video_type: str, score: float) -> tuple[str, str]:
-    type_phrases = {
-        "face_swap":    ("a face-swap deepfake",         "someone's face has been digitally replaced"),
-        "talking_head": ("a synthetic talking-head video","the speaker's face or voice appears artificial"),
-        "ai_generated": ("AI-generated content",          "this video was likely created by an AI model such as Sora or Runway"),
-        "multi_person": ("a manipulated video",           "artificial elements were detected"),
-        "animation":    ("computer-generated imagery",    "this appears to be CGI or animation"),
-        "real_person":  ("authentic content",             "no significant manipulation was detected"),
+    # Phrases used when verdict = FAKE
+    fake_phrases = {
+        "face_swap":    ("a face-swap deepfake",          "someone's face has been digitally replaced"),
+        "talking_head": ("a synthetic talking-head video", "the speaker's face or voice appears artificial"),
+        "ai_generated": ("AI-generated content",           "this video was likely created by an AI model such as Sora or Runway"),
+        "multi_person": ("a manipulated video",            "artificial elements were detected"),
+        "animation":    ("computer-generated imagery",     "this appears to be CGI or animation"),
+        "real_person":  ("a manipulated video",            "our analysis detected signs of digital manipulation"),
+        "cinematic":    ("manipulated cinematic footage",  "artificial elements were detected within what appears to be film or broadcast content"),
     }
-    noun, reason = type_phrases.get(video_type, ("manipulated content", "artificial elements were detected"))
+    # Phrases used when verdict = UNCERTAIN
+    uncertain_phrases = {
+        "ai_generated": ("AI-generated content",           "some signals were unusual but not conclusive"),
+        "animation":    ("computer-generated imagery",     "this may be CGI or animation"),
+        "face_swap":    ("a face-swap deepfake",           "some signals were unusual but not conclusive"),
+        "talking_head": ("a synthetic talking-head video", "some signals were unusual but not conclusive"),
+        "real_person":  ("manipulation",                   "some signals were ambiguous"),
+        "multi_person": ("manipulation",                   "some signals were ambiguous"),
+        "cinematic":    ("manipulation",                   "some unusual signals were detected but may be film artefacts"),
+    }
 
     if verdict == "FAKE":
+        noun, reason = fake_phrases.get(video_type, ("manipulated content", "artificial elements were detected"))
         return (
             f"This video is most likely {noun} — {reason}.",
             "🔴"
         )
     elif verdict == "UNCERTAIN":
+        noun, reason = uncertain_phrases.get(video_type, ("manipulation", "some signals were ambiguous"))
         if score > 0.52:
             return (
                 f"This video shows some signs of {noun}, but we could not confirm it with high confidence.",
@@ -150,21 +163,52 @@ def _verdict_text(verdict: str, video_type: str, score: float) -> tuple[str, str
                 "🟡"
             )
     else:  # REAL
-        return (
-            "This video appears to be authentic — no significant manipulation was detected.",
-            "🟢"
-        )
+        # For AI-generated or animation type, even a REAL verdict should acknowledge
+        # what the content appears to be — without claiming it is "authentic footage".
+        if video_type == "ai_generated":
+            return (
+                "Our analysis did not detect manipulation signals strong enough to confirm this as AI-generated, "
+                "but the video was classified as an AI-generated scene. Treat with caution.",
+                "🟡"
+            )
+        elif video_type == "animation":
+            return (
+                "This appears to be animation or CGI — no manipulation signals were detected within it.",
+                "🟢"
+            )
+        elif video_type == "cinematic":
+            return (
+                "This appears to be real cinematic or broadcast footage — "
+                "no significant manipulation was detected.",
+                "🟢"
+            )
+        else:
+            return (
+                "This video appears to be authentic — no significant manipulation was detected.",
+                "🟢"
+            )
 
 
-def _confidence_label(confidence: float, verdict: str) -> str:
+def _confidence_label(confidence: float, verdict: str, video_type: str = "") -> str:
     if verdict == "UNCERTAIN":
         return "Inconclusive — manual review recommended"
-    if confidence >= 0.80:
-        return "High confidence" if verdict == "FAKE" else "Likely authentic"
-    elif confidence >= 0.55:
-        return "Moderate confidence"
-    else:
-        return "Low confidence — results may be inconclusive"
+    if verdict == "FAKE":
+        if confidence >= 0.80:
+            return "High confidence"
+        elif confidence >= 0.55:
+            return "Moderate confidence"
+        else:
+            return "Low confidence — results may be inconclusive"
+    else:  # REAL
+        # For AI-generated scene type classified as REAL, stay cautious
+        if video_type in ("ai_generated", "animation"):
+            return "Uncertain — treat with caution"
+        if confidence >= 0.80:
+            return "Likely authentic" if video_type != "cinematic" else "Likely real footage"
+        elif confidence >= 0.55:
+            return "Probably authentic"
+        else:
+            return "Low confidence — results may be inconclusive"
 
 
 def _build_what_checked(
@@ -179,7 +223,13 @@ def _build_what_checked(
 ) -> List[str]:
     checks = []
 
-    if ran_siglip and total_classified > 0:
+    if video_type == "cinematic":
+        checks.append(
+            "We measured film grain, camera noise patterns, dynamic range, and "
+            "motion coherence — signals that distinguish real camera recordings "
+            "from AI-generated or heavily edited footage"
+        )
+    elif ran_siglip and total_classified > 0:
         checks.append(
             f"We analysed {total_classified} video frames to detect AI generation signatures "
             f"(Sora, DALL-E, Midjourney, Stable Diffusion, etc.)"
@@ -346,6 +396,12 @@ def _what_to_do(verdict: str, video_type: str) -> str:
                 "It appears to have been fully generated by AI. "
                 "If you found it misrepresented as real news or events, consider reporting it."
             )
+        elif video_type == "cinematic":
+            return (
+                "This appears to be edited or manipulated cinematic footage. "
+                "Verify the original source before sharing, "
+                "as clips from films or broadcasts are sometimes used out of context."
+            )
         else:
             return (
                 "Treat this video with caution. "
@@ -353,10 +409,22 @@ def _what_to_do(verdict: str, video_type: str) -> str:
                 "Verify with other sources before sharing."
             )
     elif verdict == "UNCERTAIN":
+        if video_type in ("ai_generated", "animation"):
+            return (
+                "Our analysis classified this as AI-generated content, but could not confirm it with high confidence. "
+                "Look for visual artefacts, unnatural motion, or mismatched audio. "
+                "When in doubt, do not share as real footage."
+            )
         return (
             "Our analysis could not reach a definitive conclusion. "
             "Look for additional context: who posted it, when, and whether other sources confirm it. "
             "When in doubt, do not share."
+        )
+    elif video_type == "cinematic":
+        return (
+            "This appears to be real film or broadcast footage with no detected manipulation. "
+            "Keep in mind that clips from movies or TV shows can be shared out of context — "
+            "always verify the original source."
         )
     else:
         return (
