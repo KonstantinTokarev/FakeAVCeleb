@@ -151,7 +151,13 @@ def _verdict_text(verdict: str, video_type: str, score: float) -> tuple[str, str
         )
     elif verdict == "UNCERTAIN":
         noun, reason = uncertain_phrases.get(video_type, ("manipulation", "some signals were ambiguous"))
-        if score > 0.52:
+        if video_type in ("ai_generated", "multi_person"):
+            return (
+                f"Our detectors could not confirm this with high confidence, but this video "
+                f"shows signals consistent with AI-generated content. Treat with caution.",
+                "🟡"
+            )
+        elif score > 0.52:
             return (
                 f"This video shows some signs of {noun}, but we could not confirm it with high confidence.",
                 "🟡"
@@ -409,9 +415,9 @@ def _what_to_do(verdict: str, video_type: str) -> str:
                 "Verify with other sources before sharing."
             )
     elif verdict == "UNCERTAIN":
-        if video_type in ("ai_generated", "animation"):
+        if video_type in ("ai_generated", "animation", "multi_person"):
             return (
-                "Our analysis classified this as AI-generated content, but could not confirm it with high confidence. "
+                "Our analysis detected signals consistent with AI-generated content, but could not confirm it with high confidence. "
                 "Look for visual artefacts, unnatural motion, or mismatched audio. "
                 "When in doubt, do not share as real footage."
             )

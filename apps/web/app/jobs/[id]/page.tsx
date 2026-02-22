@@ -13,7 +13,6 @@ const STEPS = [
   { key: "INFERENCING",    label: "Inferencing" },
   { key: "CLASSIFYING",    label: "Classifying video type" },
   { key: "REPORTING",      label: "Reporting" },
-  { key: "DONE",           label: "Done" },
 ];
 
 export default function JobPage() {

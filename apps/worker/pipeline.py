@@ -36,8 +36,9 @@ _TYPE_WEIGHTS = {
     "face_swap":    {"av": 0.72, "siglip": 0.00, "temporal": 0.15, "audio": 0.13},
     "talking_head": {"av": 0.60, "siglip": 0.00, "temporal": 0.15, "audio": 0.25},
     "real_person":  {"av": 0.65, "siglip": 0.00, "temporal": 0.20, "audio": 0.15},
-    # multi_person: no reliable face-track → reduce AV, keep temporal
-    "multi_person": {"av": 0.15, "siglip": 0.25, "temporal": 0.40, "audio": 0.20},
+    # multi_person: no reliable face-track → reduce AV, boost siglip+temporal
+    # (most reliable signals for AI-generated crowd/group scenes)
+    "multi_person": {"av": 0.10, "siglip": 0.35, "temporal": 0.40, "audio": 0.15},
     # ai_generated / animation: no real face → CLIP AV irrelevant, CommunityForensics+temporal dominate
     "ai_generated": {"av": 0.05, "siglip": 0.45, "temporal": 0.38, "audio": 0.12},
     "animation":    {"av": 0.00, "siglip": 0.35, "temporal": 0.50, "audio": 0.15},
@@ -315,14 +316,26 @@ async def run_pipeline(job_id: str):
             segments = sorted(time_buckets.values(), key=lambda s: s["start"])
 
             # ── Verdict ────────────────────────────────────────────────────
-            # Threshold lowered to 0.55 (was 0.62) to catch deepfakes where
-            # the CLIP model scores 0.55-0.62 after recalibration.
-            # UNCERTAIN band is 0.38-0.55 — film/cinematic real videos that
-            # confuse SigLIP tend to land 0.35-0.45 and stay in REAL/UNCERTAIN.
-            if score_overall >= 0.55:
+            # Type-specific thresholds:
+            #   - multi_person / ai_generated: lower bar (0.40 FAKE, 0.25 UNCERTAIN)
+            #     because CommunityForensics ViT is weak on crowded/AI-video frames
+            #     and temporal is the primary signal, which scores lower than face-swap CLIP.
+            #   - cinematic: higher FAKE bar (0.58) to avoid false positives on real film.
+            #   - all others: standard 0.55 FAKE / 0.38 UNCERTAIN.
+            if video_type in ("multi_person", "ai_generated"):
+                fake_threshold      = 0.40
+                uncertain_threshold = 0.25
+            elif video_type == "cinematic":
+                fake_threshold      = 0.58
+                uncertain_threshold = 0.40
+            else:
+                fake_threshold      = 0.55
+                uncertain_threshold = 0.38
+
+            if score_overall >= fake_threshold:
                 verdict_key = "FAKE"
                 verdict     = "likely_fake"
-            elif score_overall >= 0.38:
+            elif score_overall >= uncertain_threshold:
                 verdict_key = "UNCERTAIN"
                 verdict     = "uncertain"
             else:
@@ -342,10 +355,10 @@ async def run_pipeline(job_id: str):
                 else:
                     video_type = "real_person"
                     video_type_label = "Person Video"
-            elif video_type in ("ai_generated", "animation") and verdict_key == "REAL":
-                # Content type says AI-generated but score is low — stay cautious.
-                # Override verdict to UNCERTAIN so the UI reflects ambiguity rather
-                # than claiming the video is "authentic."
+            elif video_type in ("ai_generated", "animation", "multi_person") and verdict_key == "REAL":
+                # These types are inherently ambiguous when the score is low —
+                # the detectors are weaker for crowded/AI-video frames.
+                # Override to UNCERTAIN rather than claiming "authentic."
                 verdict_key = "UNCERTAIN"
                 verdict     = "uncertain"
             # cinematic: keep label as-is on any verdict — it is a neutral,

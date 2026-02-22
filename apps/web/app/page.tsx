@@ -9,10 +9,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export default function LandingPage() {
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [maxSeconds, setMaxSeconds] = useState(60);
-  const [singleFace, setSingleFace] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const maxSeconds = 60;
+  const singleFace = false;
 
   const startAnalysisByLink = async () => {
     setError(null);
@@ -146,37 +145,6 @@ export default function LandingPage() {
               {uploading ? "Uploading…" : "Upload video (MP4, MOV, WebM)"}
             </label>
           </div>
-
-          <button
-            type="button"
-            className={styles.advancedToggle}
-            onClick={() => setAdvancedOpen((o) => !o)}
-          >
-            {advancedOpen ? "▼" : "▶"} Advanced settings
-          </button>
-          {advancedOpen && (
-            <div className={styles.advanced}>
-              <label className={styles.option}>
-                <span>Analyze first (seconds)</span>
-                <input
-                  type="number"
-                  min={10}
-                  max={300}
-                  value={maxSeconds}
-                  onChange={(e) => setMaxSeconds(Number(e.target.value))}
-                  className={styles.smallInput}
-                />
-              </label>
-              <label className={styles.checkbox}>
-                <input
-                  type="checkbox"
-                  checked={singleFace}
-                  onChange={(e) => setSingleFace(e.target.checked)}
-                />
-                Single-face mode (recommended)
-              </label>
-            </div>
-          )}
 
           {error && <p className={styles.error}>{error}</p>}
 
