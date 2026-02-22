@@ -363,46 +363,21 @@ def _classify(
     Rule-based classifier. Returns (video_type, confidence).
 
     Decision priority:
-      0. Cinematic / broadcast (film grain + coherent motion + HDR — trumps ai_generated)
       1. Animation (low texture var + high saturation → clear CGI signal)
       2. Multi-person (multi_face flag)
       3. Real person early-exit (stable face + mostly real frames)
-      4. AI-generated (high AI votes + temporal anomaly, no stable face)
-      5. Face-swap (face present + high deepfake/AI votes)
+      4. AI-generated (high frame model votes AND/OR strong temporal anomaly)
+      5. Face-swap (face present + high fake votes)
       6. Talking head (single face, audio, low motion)
-      7. Real person (default fallback with face)
+      7. Cinematic (no face, no AI signal, but clear grain/letterbox/DR → real footage)
+      8. Real person (default fallback with face)
+      9. Cinematic (last-resort fallback over ai_generated when no AI evidence)
     """
     if cin_signals is None:
         cin_signals = {}
 
-    # ── 0. Cinematic / broadcast footage ─────────────────────────────────
-    # Fires BEFORE the ai_generated check so cinematic footage with no
-    # detected face isn't mis-labelled as AI-generated.
-    #
-    # Strong indicators: letterbox bars (widescreen crop), film grain, HDR,
-    # and coherent directional camera motion (pan/tilt/dolly).
-    #
-    # We gate on low hc_fake_ratio to avoid catching actual AI videos that
-    # happen to have cinematic-looking frames (e.g. Sora with grain).
-    letterbox   = cin_signals.get("letterbox",        0.0)
-    grain       = cin_signals.get("grain",            0.0)
-    motion_coh  = cin_signals.get("motion_coherence", 0.0)
-
-    # Definitive cinematic signals (any one of these alone is strong):
-    # - Widescreen letterbox bars (common in movies/TV rips)
-    # - Very high grain score (film camera sensor noise)
-    strong_cinematic = letterbox >= 0.70 or grain >= 0.65
-
-    # Combined evidence: moderate grain + good motion coherence + low fake ratio
-    combined_cinematic = (
-        cin_score >= 0.45
-        and hc_fake_ratio < 0.30          # model doesn't confidently say fake
-        and temporal_score < 0.55         # no AI-style temporal anomalies
-    )
-
-    if (strong_cinematic or combined_cinematic) and hc_fake_ratio < 0.40:
-        conf = min(1.0, cin_score * 0.7 + (1.0 - hc_fake_ratio) * 0.3)
-        return "cinematic", max(0.50, conf)
+    letterbox  = cin_signals.get("letterbox",        0.0)
+    grain      = cin_signals.get("grain",            0.0)
 
     # ── 1. Animation / CGI ────────────────────────────────────────────────
     is_flat_colour = texture_variance < 0.004
@@ -413,17 +388,14 @@ def _classify(
 
     # ── 2. Multi-person ───────────────────────────────────────────────────
     if multi_face:
-        # High AI signal in multi-face → still call it ai_generated
         if ai_ratio > 0.50 and hc_fake_ratio > 0.35:
             return "ai_generated", 0.65
         return "multi_person", 0.75
 
-    # ── 3. Real person — check early so a single-face real video is never
-    #       misclassified as multi_person or ai_generated due to noisy votes ──
-    face_present = has_face and face_coverage >= 40
+    # ── 3. Real person early-exit ─────────────────────────────────────────
+    face_present  = has_face and face_coverage >= 40
     strongly_real = real_ratio >= 0.55 and hc_fake_ratio < 0.20
     if face_present and strongly_real:
-        # Could be talking head or generic real person
         is_talking_head = (
             audio_present
             and flow_score < 0.35
@@ -435,35 +407,33 @@ def _classify(
         conf = min(1.0, real_ratio * 0.7 + (1 - temporal_score) * 0.3)
         return "real_person", max(0.55, conf)
 
-    # ── 4. AI-generated scene (no stable face, strong AI+temporal signal) ─
-    # Require BOTH AI frame votes AND temporal anomaly to avoid false positives
-    # from normal video with a few compression artefacts.
+    # ── 4. AI-generated scene ─────────────────────────────────────────────
+    # Primary: frame model says fake AND no stable face.
+    # Secondary: frame model + temporal both elevated (even with partial face).
+    # Cinematic check acts as a veto: if strong cinematic evidence AND low
+    # hc_fake_ratio, do NOT call it AI-generated — fall through to cinematic.
     ai_signal       = ai_ratio > 0.45 or hc_fake_ratio > 0.40
     temporal_signal = temporal_score > 0.50 or flicker_score > 0.55
     no_stable_face  = not has_face or face_coverage < 25
 
-    if ai_signal and no_stable_face:
-        # Before calling AI-generated, check whether cinematic evidence is
-        # borderline — if so, prefer cinematic over ai_generated fallback.
-        if cin_score >= 0.35 and hc_fake_ratio < 0.35:
-            conf = min(1.0, cin_score * 0.6 + (1.0 - hc_fake_ratio) * 0.4)
-            return "cinematic", max(0.45, conf)
+    # Strong cinematic veto: letterbox is nearly definitive for real footage.
+    cinematic_veto = letterbox >= 0.70 or (grain >= 0.55 and hc_fake_ratio < 0.25)
+
+    if ai_signal and no_stable_face and not cinematic_veto:
         conf = min(1.0, ai_ratio * 0.6 + hc_fake_ratio * 0.4)
         return "ai_generated", max(0.55, conf)
 
-    if ai_signal and temporal_signal and face_coverage < 50:
+    if ai_signal and temporal_signal and face_coverage < 50 and not cinematic_veto:
         conf = min(1.0, (ai_ratio + temporal_score) / 2 + hc_fake_ratio * 0.3)
         return "ai_generated", max(0.50, conf)
 
     # ── 5. Face swap ──────────────────────────────────────────────────────
-    # Require high-confidence fake votes (frames that clearly beat Real by the
-    # calibrated margin). Raw df_ratio is too noisy to trust alone.
     fake_signal = hc_fake_ratio > 0.35 or (hc_fake_ratio > 0.20 and ai_ratio > 0.30)
     if face_present and fake_signal:
         conf = min(1.0, hc_fake_ratio * 1.5 + 0.3)
         return "face_swap", max(0.50, conf)
 
-    # ── 6. Talking head (fallback for face + audio cases) ─────────────────
+    # ── 6. Talking head ───────────────────────────────────────────────────
     is_talking_head = (
         face_present
         and audio_present
@@ -474,16 +444,28 @@ def _classify(
         conf = min(1.0, real_ratio * 0.6 + (1 - flow_score) * 0.4)
         return "talking_head", max(0.50, conf)
 
-    # ── 7. Real person (default fallback with face) ───────────────────────
+    # ── 7. Cinematic — no face, AI model NOT confident ────────────────────
+    # Only fires here when the AI checks above did NOT trigger (or were vetoed).
+    # Requires meaningful cinematic evidence AND low fake signal.
+    # This is the correct place: AFTER AI detection, BEFORE the final fallback.
+    no_ai_evidence = hc_fake_ratio < 0.25 and ai_ratio < 0.40
+    strong_cinematic   = letterbox >= 0.70 or grain >= 0.65
+    combined_cinematic = cin_score >= 0.40 and temporal_score < 0.50
+
+    if no_ai_evidence and (strong_cinematic or combined_cinematic) and not face_present:
+        conf = min(1.0, cin_score * 0.7 + (1.0 - hc_fake_ratio) * 0.3)
+        return "cinematic", max(0.50, conf)
+
+    # ── 8. Real person (default fallback with face) ───────────────────────
     if face_present:
         conf = min(1.0, real_ratio * 0.7 + (1 - temporal_score) * 0.3)
         return "real_person", max(0.45, conf)
 
-    # ── Fallback: check cinematic one last time before defaulting to AI ────
-    # This catches wide/action shots in movies that have no detected face
-    # but show clear film grain and dynamic range.
-    if cin_score >= 0.30 and hc_fake_ratio < 0.35:
-        return "cinematic", max(0.40, cin_score)
+    # ── 9. Last-resort fallback ───────────────────────────────────────────
+    # No face, AI signal was borderline or cinematic veto prevented ai_generated.
+    # If cinematic evidence is even modest, prefer it over a low-confidence
+    # ai_generated label — it is less alarming and more accurate for real footage.
+    if cin_score >= 0.25 and hc_fake_ratio < 0.30:
+        return "cinematic", max(0.35, cin_score)
 
-    # ── Last resort: AI-generated (no face, nothing else matched) ─────────
     return "ai_generated", 0.40

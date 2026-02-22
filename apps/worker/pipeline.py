@@ -42,9 +42,10 @@ _TYPE_WEIGHTS = {
     "ai_generated": {"av": 0.05, "siglip": 0.45, "temporal": 0.38, "audio": 0.12},
     "animation":    {"av": 0.00, "siglip": 0.35, "temporal": 0.50, "audio": 0.15},
     # cinematic: real film/TV/broadcast — AV model may run if face visible,
-    #   CommunityForensics gets low weight (it's not trained on film grain),
-    #   temporal is a solid signal for AI artifacts, audio helps if present.
-    "cinematic":    {"av": 0.30, "siglip": 0.10, "temporal": 0.45, "audio": 0.15},
+    #   CommunityForensics gets low weight (trained on still images, not film),
+    #   temporal gets LOW weight because pans/cuts score high on real footage,
+    #   audio is the most reliable remaining signal.
+    "cinematic":    {"av": 0.45, "siglip": 0.05, "temporal": 0.20, "audio": 0.30},
 }
 
 _TYPE_SKIP = {
