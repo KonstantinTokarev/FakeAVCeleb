@@ -1,45 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import styles from "./page.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function LandingPage() {
-  const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const maxSeconds = 60;
   const singleFace = false;
-
-  const startAnalysisByLink = async () => {
-    setError(null);
-    if (!url.trim()) {
-      setError("Please enter a video URL.");
-      return;
-    }
-    try {
-      const res = await fetch(`${API_URL}/api/jobs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          input_type: "link",
-          input_url: url.trim(),
-          options: { max_seconds: maxSeconds, single_face: singleFace },
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = data.detail?.message || data.detail?.error_code || JSON.stringify(data.detail);
-        setError(msg);
-        return;
-      }
-      window.location.href = `/jobs/${data.job_id}`;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Network error");
-    }
-  };
 
   const onFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -103,36 +73,12 @@ export default function LandingPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>Deepfake Detector</h1>
         <p className={styles.subtitle}>
-          Analyze a video from a link or upload and get a deepfake likelihood score, confidence, and flagged timestamps.
+          Upload a video to get a deepfake likelihood score, confidence, and flagged timestamps.
         </p>
       </header>
 
       <main className={styles.main}>
         <div className={styles.card}>
-          <div className={styles.inputGroup}>
-            <label className={styles.label}>Video URL</label>
-            <input
-              type="url"
-              placeholder="https://..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className={styles.input}
-              disabled={uploading}
-            />
-            <button
-              type="button"
-              onClick={startAnalysisByLink}
-              className={styles.primaryBtn}
-              disabled={uploading}
-            >
-              Analyze from link
-            </button>
-          </div>
-
-          <div className={styles.divider}>
-            <span>or</span>
-          </div>
-
           <div className={styles.uploadZone}>
             <label className={styles.uploadLabel}>
               <input
@@ -150,9 +96,6 @@ export default function LandingPage() {
 
           <p className={styles.note}>
             Privacy: We process your video only to produce the analysis. Files are deleted after the retention period (e.g. 24h). We do not train on your content.
-          </p>
-          <p className={styles.footer}>
-            <Link href="/admin">Admin — job logs</Link>
           </p>
         </div>
       </main>

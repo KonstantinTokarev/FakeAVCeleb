@@ -4,14 +4,15 @@ A web app that analyzes a **video from a link or upload** and returns a **deepfa
 
 ## How it works
 
-1. **Video type classification** — Automatically identifies what kind of video it is (face swap, talking head, AI-generated, multi-person, cinematic, animation, real person).
-2. **Type-aware model selection** — Routes the video to the best combination of detectors for that type.
+1. **Video type classification** — Identifies the kind of video (face swap, talking head, AI-generated, multi-person, cinematic, animation, real person) using face presence, frame-level signals, and temporal patterns.
+2. **Type-aware model selection** — Chooses detector weights per type (e.g. CLIP A/V for face-swap, CommunityForensics + temporal for AI-generated scenes).
 3. **Inference passes:**
-   - CLIP ViT-L/14 A/V consistency (face-swap / talking-head deepfakes)
-   - CommunityForensics-DeepfakeDet-ViT (binary frame-level AI artifact detection)
-   - Optical flow + flicker + texture temporal analysis
-   - Wav2Vec2-large audio deepfake detection (voice cloning / TTS)
-4. **Plain-English explanation** — Results explained for non-technical users.
+   - **CLIP ViT-L/14** A/V consistency (face-swap / talking-head deepfakes)
+   - **CommunityForensics-DeepfakeDet-ViT** binary frame classifier (AI vs real)
+   - Optical flow + flicker + texture **temporal analysis**
+   - **Wav2Vec2-large** (or signal-only) **audio** deepfake detection (voice cloning / TTS)
+4. **Score fusion and verdict** — Type-specific thresholds; multi-person and AI-generated scenes get a confidence-weighted score boost when the type classifier flags them but per-signal scores are low (fully generated, no face deepfake).
+5. **Plain-English report** — Verdict, “What we checked”, “What we found”, and optional PDF export.
 
 ## Repo structure
 
@@ -126,6 +127,11 @@ yourdomain.com {
 | `GET` | `/api/jobs/{id}/result` | Fetch full result once `status == DONE` |
 | `GET` | `/api/admin/jobs` | List recent jobs (no auth — protect in production) |
 | `GET` | `/health` | Health check |
+
+## Documentation
+
+- **[TESTING.md](TESTING.md)** — How to run and test the app (Docker, browser, logs).
+- **[docs/AV_MODEL.md](docs/AV_MODEL.md)** — A/V model integration (CLIP default, optional FakeAVCeleb), custom model contract.
 
 ## License
 

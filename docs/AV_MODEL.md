@@ -1,11 +1,15 @@
-# Using a real A/V deepfake model
+# A/V deepfake model (face-swap / talking-head)
 
-You can replace the baseline (placeholder) scorer with a real audio-visual deepfake detection model.
+The pipeline uses a **default A/V model** for face-swap and talking-head detection. You can rely on it or optionally switch to FakeAVCeleb.
 
-## Checked repos: pretrained checkpoints
+## Default: CLIP ViT-L/14 (yermandy/deepfake-detection)
 
-- **FakeAVCeleb** ([DASH-Lab/FakeAVCeleb](https://github.com/DASH-Lab/FakeAVCeleb)): Repo contains **checkpoint.pt** in the root. The app can use it for **video-only** (frame-based) inference: set `FAKEAVCELEB_REPO_DIR` to the cloned repo and `AV_MODEL_ENABLED=true`. Requires `torch`, `torchvision`, `Pillow`. Audio is not used in this integration (FakeAVCeleb’s eval expects separate spectrogram folders).
-- **DiMoDif** ([mever-team/dimodif](https://github.com/mever-team/dimodif)): **No pretrained checkpoints in the repo** — `ckpt/dfd` and `ckpt/tfl` are empty. You must train with `scripts/best.py` (and run their feature extraction from [Visual_Speech_Recognition_for_Multiple_Languages](https://github.com/mpc001/Visual_Speech_Recognition_for_Multiple_Languages) first). DiMoDif works on **pre-extracted A/V features**, not raw video/audio, so it is not wired in this codebase.
+With **`AV_MODEL_ENABLED=true`** (default), the worker uses **yermandy/deepfake-detection** from Hugging Face (CLIP ViT-L/14). It is downloaded automatically on first run; no extra config. This is the primary model for lip-sync and face-swap detection.
+
+## Optional: FakeAVCeleb (video-only)
+
+- **FakeAVCeleb** ([DASH-Lab/FakeAVCeleb](https://github.com/DASH-Lab/FakeAVCeleb)): Repo contains **checkpoint.pt** in the root. The app can use it for **video-only** (frame-based) inference: set `FAKEAVCELEB_REPO_DIR` to the cloned repo and keep `AV_MODEL_ENABLED=true`. The code tries CLIP first; if unavailable it can fall back to FakeAVCeleb when the repo path is set. Requires `torch`, `torchvision`, `Pillow`. Audio is not used in the FakeAVCeleb path.
+- **DiMoDif** ([mever-team/dimodif](https://github.com/mever-team/dimodif)): **No pretrained checkpoints in the repo** — `ckpt/dfd` and `ckpt/tfl` are empty. DiMoDif works on **pre-extracted A/V features**, not raw video/audio, so it is not wired in this codebase.
 
 ## 1. Interface your model must implement
 
@@ -38,7 +42,7 @@ Inputs you get from the pipeline:
 - **duration_seconds**, **window_seconds**: to build segments (e.g. 5 s windows).
 - **face_coverage**, **audio_present**, **multi_face**: for optional confidence/fallback logic.
 
-## 2. Using FakeAVCeleb (video-only, pretrained)
+## 2. Using FakeAVCeleb (video-only, optional)
 
 1. Clone the repo and install deps:
    ```bash
@@ -48,15 +52,15 @@ Inputs you get from the pipeline:
 2. Set environment variables for the worker:
    - `AV_MODEL_ENABLED=true`
    - `FAKEAVCELEB_REPO_DIR=/path/to/FakeAVCeleb` (path to the cloned repo that contains `checkpoint.pt`)
-3. Restart the worker. It will run the Xception model on each extracted frame and return per-segment and overall deepfake scores (audio is not used in this path).
+3. Restart the worker. The pipeline tries CLIP first; if you want FakeAVCeleb only, you would need to adjust the priority in `inference_av.py`. FakeAVCeleb runs the Xception model on each extracted frame (audio not used).
 
-## 3. Where to put your code
+## 3. Custom model: where to put your code
 
-1. Implement `run_inference_av()` in **`apps/worker/inference_av.py`** (replace or extend the current stub).
+1. Implement or replace `run_inference_av()` in **`apps/worker/inference_av.py`** (the file already implements CLIP + optional FakeAVCeleb).
 2. Set **`AV_MODEL_ENABLED=true`** (or `1`) in the worker environment (e.g. in `docker-compose.yml` or `.env`).
 3. Rebuild/restart the worker.
 
-If `AV_MODEL_ENABLED` is set and `run_inference_av()` is present, it will be used; on any exception the worker falls back to the baseline and logs a warning.
+If `AV_MODEL_ENABLED` is set, the worker uses the A/V path; on any exception it falls back to the baseline and logs a warning.
 
 ## 4. Example: DigiShield-style model
 

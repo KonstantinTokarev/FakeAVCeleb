@@ -7,7 +7,6 @@ Step 3 — Inference passes           (inference_*.py modules)
 Step 4 — Plain-English explanation  (inference_explain.py)
 """
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from worker.db import AsyncSessionLocal
 from worker.config import settings
 from worker.download import download_video, DownloadError
@@ -58,10 +57,6 @@ _TYPE_SKIP = {
     "real_person":  set(),
     "cinematic":    set(),
 }
-
-# High-confidence threshold for CommunityForensics ViT per-frame fake probability
-# (used in pipeline body where HC_THRESHOLD is defined as a local constant)
-_HC_TRIGGER = 0.15  # fraction of high-confidence-fake frames that triggers elevated siglip_score
 
 
 def _model_config(video_type: str) -> tuple[dict, set]:
@@ -289,6 +284,14 @@ async def run_pipeline(job_id: str):
                 temporal_score    * w_temporal +
                 audio_fake_score  * w_audio
             )
+
+            # Boost for multi-person / AI-generated scenes when type classifier is confident
+            # but per-signal scores are low (fully generated, no face deepfake).
+            # Raises e.g. 10/100 or 21/100 into at least uncertain (25+) or low-fake (40+) range.
+            if video_type in ("multi_person", "ai_generated") and score_overall < 0.45:
+                type_conf = video_type_result.get("confidence", 0.5)
+                boost = type_conf * 0.30  # 0.5 conf -> +0.15, 0.7 -> +0.21
+                score_overall = min(1.0, score_overall + boost)
 
             # ── Merge per-window segments ──────────────────────────────────
             time_buckets: dict[str, dict] = {}

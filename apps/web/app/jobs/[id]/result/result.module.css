@@ -287,8 +287,6 @@
   gap: 1.25rem;
 }
 
-.subScore {}
-
 .subLabel {
   display: flex;
   justify-content: space-between;
