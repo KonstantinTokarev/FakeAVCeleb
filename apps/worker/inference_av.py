@@ -232,7 +232,7 @@ def run_inference_av(
       2. FakeAVCeleb Xception — if FAKEAVCELEB_REPO_DIR is set
       3. Baseline — deterministic fallback
     """
-    from config import settings
+    from worker.config import settings
 
     # 1. CLIP-based model (auto-download from HuggingFace)
     try:

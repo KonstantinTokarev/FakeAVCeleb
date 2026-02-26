@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 
-from config import settings
+from worker.config import settings
 
 # Support both postgres (asyncpg) and sqlite (aiosqlite)
 url = settings.database_url

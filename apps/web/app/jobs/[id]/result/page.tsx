@@ -329,8 +329,8 @@ export default function ResultPage() {
           <span className={styles.toggleHint}>for researchers & advanced users</span>
         </button>
 
-        {showTech && (
-          <div className={styles.techDetails}>
+        {/* Always in DOM so @media print can show it even when collapsed */}
+        <div className={`${styles.techDetails} ${showTech ? styles.techDetailsOpen : styles.techDetailsHidden}`}>
 
             {/* Sub-scores */}
             <h4 className={styles.techSubTitle}>Detection sub-scores</h4>
@@ -529,7 +529,6 @@ export default function ResultPage() {
             </div>
 
           </div>
-        )}
       </div>
 
       {/* ── Flagged frames (collapsible) ─────────────────────────────── */}
@@ -542,27 +541,32 @@ export default function ResultPage() {
           >
             {showFrames ? "▲" : "▶"} Flagged frames ({result.flagged_frames.length})
           </button>
-          {showFrames && (
-            <div className={styles.framesGrid}>
-              {result.flagged_frames.map((fr) => (
-                <div key={fr.index} className={styles.frameItem}>
-                  <div className={styles.frameIndex}>Frame #{fr.index}</div>
-                  <div className={styles.frameScore} style={{ color: scoreColor(fr.score) }}>
-                    {Math.round(fr.score * 100)}%
-                  </div>
-                  {Object.entries(fr.findings || {}).map(([k, v]) => (
-                    <div key={k} className={styles.frameFinding}>{k}: {v}</div>
-                  ))}
+          <div className={`${styles.framesGrid} ${showFrames ? styles.framesGridOpen : styles.framesGridHidden}`}>
+            {result.flagged_frames.map((fr) => (
+              <div key={fr.index} className={styles.frameItem}>
+                <div className={styles.frameIndex}>Frame #{fr.index}</div>
+                <div className={styles.frameScore} style={{ color: scoreColor(fr.score) }}>
+                  {Math.round(fr.score * 100)}%
                 </div>
-              ))}
-            </div>
-          )}
+                {Object.entries(fr.findings || {}).map(([k, v]) => (
+                  <div key={k} className={styles.frameFinding}>{k}: {v}</div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* ── Actions ───────────────────────────────────────────────────── */}
       <div className={styles.actions}>
         <Link href="/" className={styles.primaryBtn}>Analyze another video</Link>
+        <button
+          type="button"
+          className={styles.exportBtn}
+          onClick={() => window.print()}
+        >
+          Export PDF
+        </button>
       </div>
     </div>
   );

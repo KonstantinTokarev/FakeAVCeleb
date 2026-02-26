@@ -8,8 +8,8 @@ Step 4 — Plain-English explanation  (inference_explain.py)
 """
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from db import AsyncSessionLocal
-from config import settings
+from worker.db import AsyncSessionLocal
+from worker.config import settings
 from worker.download import download_video, DownloadError
 from worker.preprocess import trim_and_extract, get_video_duration, has_audio
 from worker.face_detect import detect_faces_in_frames
@@ -77,7 +77,7 @@ def _model_config(video_type: str) -> tuple[dict, set]:
 
 async def run_pipeline(job_id: str):
     async with AsyncSessionLocal() as db:
-        from models import Job, Result
+        from worker.models import Job, Result
 
         r = await db.execute(select(Job).where(Job.id == job_id))
         job = r.scalar_one_or_none()

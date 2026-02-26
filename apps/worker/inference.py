@@ -4,7 +4,7 @@ Inference interface: takes preprocessed artifacts and returns overall score + pe
 - If AV_MODEL_ENABLED=true and worker.inference_av implements run_inference_av(), that is used instead.
 See inference_av.py and docs/AV_MODEL.md for how to plug in a real A/V model.
 """
-from config import settings
+from worker.config import settings
 
 
 def _run_baseline(

@@ -214,6 +214,14 @@
   padding-top: 1.25rem;
 }
 
+.techDetailsOpen {
+  display: block;
+}
+
+.techDetailsHidden {
+  display: none;
+}
+
 .techSubTitle {
   font-size: 0.78rem;
   font-weight: 700;
@@ -407,10 +415,17 @@
 
 /* ── Flagged frames ───────────────────────────────── */
 .framesGrid {
-  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.framesGridOpen {
+  display: grid;
+}
+
+.framesGridHidden {
+  display: none;
 }
 
 .frameItem {
@@ -495,6 +510,9 @@
 /* ── Actions ──────────────────────────────────────── */
 .actions {
   margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .primaryBtn {
@@ -511,6 +529,31 @@
   background: var(--accent-hover);
   color: white;
   text-decoration: none;
+}
+
+.exportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.exportBtn::before {
+  content: "↓";
+  font-size: 1rem;
+}
+
+.exportBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── Skeleton loading ─────────────────────────────── */
@@ -544,4 +587,67 @@
   display: inline-block;
   margin-top: 1rem;
   font-size: 0.9rem;
+}
+
+/* ── Print / PDF export ───────────────────────────── */
+@media print {
+  /* Hide interactive controls */
+  .actions,
+  .toggleBtn,
+  .backLink {
+    display: none !important;
+  }
+
+  /* Always expand collapsible sections when printing */
+  .techDetailsHidden {
+    display: block !important;
+  }
+
+  .framesGridHidden {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  /* Remove box shadows, simplify borders */
+  .heroCard,
+  .card,
+  .whatToDoCard {
+    box-shadow: none;
+    border: 1px solid #d0d0d0;
+    break-inside: avoid;
+  }
+
+  /* Two-col stays two-col on A4 */
+  .twoCol {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Keep wrapper full-width for print */
+  .wrapper {
+    max-width: 100%;
+    padding: 1rem;
+  }
+
+  /* Add a report title at the top */
+  .header::before {
+    content: "Deepfake Detection Report";
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Ensure progress bars render in print */
+  .barFill,
+  .voteSegment {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page breaks */
+  .heroCard { page-break-after: avoid; }
+  .twoCol   { page-break-inside: avoid; }
+  .card     { page-break-inside: avoid; }
 }

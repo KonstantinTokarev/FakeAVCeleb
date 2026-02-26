@@ -3,7 +3,7 @@ from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.sql import func
 import uuid
 
-from db import Base
+from worker.db import Base
 
 
 def gen_uuid():

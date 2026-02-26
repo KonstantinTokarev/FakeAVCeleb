@@ -287,6 +287,19 @@ def _build_what_found(
     findings = []
     n = max(total_classified, 1)
 
+    # For UNCERTAIN on AI-typed content: the individual detectors didn't fire strongly
+    # but the video type classifier — which looks at face absence, temporal signals,
+    # and frame-level patterns together — flagged this as AI-generated.
+    # Explain that specific signal so "What we Found" isn't contradictory.
+    if verdict == "UNCERTAIN" and video_type in ("ai_generated", "multi_person"):
+        findings.append(
+            "The video type classifier identified structural patterns consistent with "
+            "AI-generated video — such as the absence of a stable human face, unusual "
+            "frame-level texture, or scene composition typical of AI generators like Sora or Runway. "
+            "Individual detectors did not reach a high-confidence threshold, which is common "
+            "when AI generators produce near-realistic output."
+        )
+
     # Frame classification findings.
     # CommunityForensics ViT has a 2.1% FPR, but is trained on AI-generated images,
     # not face-swaps. Weight = 0 for face/person types. Still, never show alarming
@@ -299,6 +312,13 @@ def _build_what_found(
             findings.append(
                 "Frame analysis found no significant manipulation signals — "
                 "the video looks consistent with authentic footage"
+            )
+        elif verdict == "UNCERTAIN" and video_type in ("ai_generated", "multi_person"):
+            # Explain the ambiguity rather than showing a misleading green bullet
+            findings.append(
+                "Frame-by-frame analysis did not detect obvious AI artifacts — "
+                "modern AI generators can produce frames that look photo-realistic "
+                "and pass frame-level checks even when the overall video structure is AI-generated"
             )
         elif hc_fake_ratio >= 0.60:
             findings.append(
@@ -351,6 +371,12 @@ def _build_what_found(
                 f"Some motion patterns between frames look slightly unnatural "
                 f"(temporal score {temporal_score:.0%})"
             )
+        elif verdict == "UNCERTAIN" and video_type in ("ai_generated", "multi_person"):
+            findings.append(
+                f"Frame-to-frame motion appears natural ({temporal_score:.0%} anomaly score) — "
+                f"note that high-quality AI generators now produce motion that closely mimics "
+                f"real camera movement, so this alone does not confirm authenticity"
+            )
         else:
             findings.append(
                 f"Frame-to-frame motion looks natural, like a real camera recording "
@@ -370,6 +396,12 @@ def _build_what_found(
                 f"The audio has some unusual characteristics that may indicate "
                 f"dubbed, AI-generated, or re-recorded speech "
                 f"(audio score {audio_score:.0%})"
+            )
+        elif verdict == "UNCERTAIN" and video_type in ("ai_generated", "multi_person"):
+            findings.append(
+                f"The audio sounds natural ({audio_score:.0%} anomaly score) — "
+                f"AI-generated videos can include real or realistic-sounding audio, "
+                f"so a clean audio score does not rule out AI-generated visuals"
             )
         else:
             findings.append(

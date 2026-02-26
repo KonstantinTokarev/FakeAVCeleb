@@ -1,5 +1,5 @@
 import redis.asyncio as redis
-from config import settings
+from worker.config import settings
 
 QUEUE_NAME = "deepfake_jobs"
 
