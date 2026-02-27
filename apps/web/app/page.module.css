@@ -11,19 +11,13 @@
 
 .logoRow {
   display: inline-block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .logo {
   display: block;
   height: auto;
-}
-
-.title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.02em;
+  max-width: 100%;
 }
 
 .subtitle {
