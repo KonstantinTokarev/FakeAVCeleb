@@ -68,6 +68,8 @@ pnpm install && pnpm dev:web
 
 ## Production deployment
 
+**Full checklist (hosting + Stripe):** see **[docs/GO_LIVE_STRIPE.md](docs/GO_LIVE_STRIPE.md)** for going live online with Stripe payments (env vars, webhook, smoke test).
+
 ### 1. Set environment variables
 
 Copy `.env.example` to `.env` and configure:

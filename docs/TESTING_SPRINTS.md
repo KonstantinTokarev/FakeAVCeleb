@@ -171,6 +171,40 @@ Sends 4 `POST /api/jobs` (upload) with **different** `X-Anonymous-Id` and **same
 5. Clear storage, upload again → 3rd free.
 6. Clear storage, upload again → **4th** attempt should show the rate-limit message (429): *"Free check limit reached for this network. Try again tomorrow or pay 1 €."*
 
+## Sprint 7: E2E + edge cases
+
+**Goal:** Full pricing and payment flow works; no double-spend; webhook idempotent.
+
+### Already covered in code / earlier sprints
+
+- **Webhook idempotency:** Implemented via `stripe_processed_sessions` table; same `checkout.session.completed` is only processed once. Tested in Sprint 4 (`test_webhook_increment_and_idempotent` and `run_sprint4_tests.py`).
+- **Concurrency (one credit = one job):** Credit deduction and job creation happen in the same DB transaction in `create_job`; two simultaneous requests cannot both consume the same credit.
+
+### Manual checks (Sprint 7)
+
+**1. Full E2E flow (requires Stripe configured)**  
+Same browser, no clearing cookies:
+
+1. First upload → job runs to completion (free).
+2. Second upload → UI shows “Pay 1 €” (402).
+3. Click “Pay 1 €” → complete payment on Stripe → redirect to success page.
+4. From the app, upload again → second job is created and runs (one credit used).
+5. Third upload → free again (no payment, no 402).
+
+**2. New browser = new user**  
+Open the app in another browser (or incognito). First upload should be free again (“Next check: free”).
+
+**3. Two tabs, one credit (concurrency)**  
+- In one browser, get to “Pay 1 €” and complete payment once (so you have 1 credit).
+- Open a second tab to the same app (same `df_uid`).
+- In **both** tabs, start an upload at nearly the same time (both will call `POST /api/jobs`).
+- **Expected:** Only **one** of the two requests creates a job (200); the other should get 402 (no credit left) or one gets 200 and the other 402. Either way, only one job is created and one credit is used.
+
+### Automated coverage
+
+- **Idempotency:** `tests/test_sprint4_stripe.py::test_webhook_increment_and_idempotent` (and script `run_sprint4_tests.py`).
+- **E2E flow:** No automated E2E test (would require Stripe test mode or mocked checkout). Use the manual steps above or the smoke test in **docs/GO_LIVE_STRIPE.md** once live.
+
 ---
 
 Later sprints will add their own test files and script checks; run the corresponding tests before starting the next sprint.
