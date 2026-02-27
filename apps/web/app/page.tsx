@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 import { getOrCreateAnonymousId, setAnonymousId } from "../lib/anonymousId";
@@ -142,6 +144,9 @@ export default function LandingPage() {
   return (
     <div className={styles.wrapper}>
       <header className={styles.header}>
+        <Link href="/" className={styles.logoRow} aria-label="Deepfake Detector home">
+          <Image src="/logo.png" alt="" width={120} height={48} className={styles.logo} />
+        </Link>
         <h1 className={styles.title}>Deepfake Detector</h1>
         <p className={styles.subtitle}>
           Upload a video to get a deepfake likelihood score, confidence, and flagged timestamps.

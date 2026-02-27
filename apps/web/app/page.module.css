@@ -9,6 +9,16 @@
   margin-bottom: 2rem;
 }
 
+.logoRow {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.logo {
+  display: block;
+  height: auto;
+}
+
 .title {
   font-size: 1.75rem;
   font-weight: 700;

@@ -1,10 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 export default function PaymentSuccessPage() {
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "2rem" }}>
+      <Link href="/" style={{ display: "inline-block", marginBottom: "1.25rem" }} aria-label="Deepfake Detector home">
+        <Image src="/logo.png" alt="" width={100} height={40} />
+      </Link>
       <h1 style={{ margin: "0 0 0.75rem 0" }}>Payment successful</h1>
       <p style={{ margin: 0, color: "var(--text-muted)" }}>
         You can now upload your video again to start the analysis.

@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import styles from "../job.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -67,9 +68,16 @@ export default function JobPage() {
     };
   }, [id, router]);
 
+  const brandBar = (
+    <Link href="/" className={styles.brandLink}>
+      <Image src="/logo.png" alt="" width={100} height={40} />
+    </Link>
+  );
+
   if (loading && !job) {
     return (
       <div className={styles.wrapper}>
+        {brandBar}
         <p className={styles.muted}>Loading job…</p>
       </div>
     );
@@ -78,6 +86,7 @@ export default function JobPage() {
   if (!job) {
     return (
       <div className={styles.wrapper}>
+        {brandBar}
         <h2 className={styles.title}>Job not found</h2>
         <p className={styles.muted}>The analysis job may have expired or the link is invalid.</p>
         <Link href="/" className={styles.link}>← Back to analyzer</Link>
@@ -88,6 +97,7 @@ export default function JobPage() {
   if (job.status === "FAILED") {
     return (
       <div className={styles.wrapper}>
+        {brandBar}
         <h2 className={styles.title}>Analysis failed</h2>
         <p className={styles.errorCode}>{job.error_code || "Unknown error"}</p>
         {job.error_message && <p className={styles.muted}>{job.error_message}</p>}
@@ -103,6 +113,7 @@ export default function JobPage() {
 
   return (
     <div className={styles.wrapper}>
+      {brandBar}
       <h2 className={styles.title}>Analyzing video</h2>
       <p className={styles.muted}>Job ID: {job.job_id}</p>
 

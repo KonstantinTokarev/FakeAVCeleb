@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import styles from "./result.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -191,6 +192,9 @@ export default function ResultPage() {
   if (error || !result) {
     return (
       <div className={styles.wrapper}>
+        <Link href="/" className={styles.logoLink} aria-label="Deepfake Detector home">
+          <Image src="/logo.png" alt="" width={100} height={40} />
+        </Link>
         <h2 className={styles.title}>Unable to load result</h2>
         <p className={styles.muted}>{error || "Not found."}</p>
         <Link href="/" className={styles.link}>← Back to analyzer</Link>
@@ -213,6 +217,9 @@ export default function ResultPage() {
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className={styles.header}>
+        <Link href="/" className={styles.logoLink} aria-label="Deepfake Detector home">
+          <Image src="/logo.png" alt="" width={100} height={40} />
+        </Link>
         <Link href="/" className={styles.backLink}>← New analysis</Link>
         <span className={styles.jobId}>Job {result.job_id.slice(0, 8)}…</span>
       </div>

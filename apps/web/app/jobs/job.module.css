@@ -5,6 +5,17 @@
   margin: 0 auto;
 }
 
+.brandLink {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.brandLink img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+
 .title {
   font-size: 1.5rem;
   font-weight: 700;
