@@ -144,9 +144,10 @@ export default function LandingPage() {
   return (
     <div className={styles.wrapper}>
       <header className={styles.header}>
-        <Link href="/" className={styles.logoRow} aria-label="Deepfake Detector home">
-          <Image src="/logo.png" alt="So Deepfake Detector" width={560} height={224} className={styles.logo} priority />
+        <Link href="/" className={styles.logoRow} aria-label="So Deepfake Detector home">
+          <Image src="/logo.png" alt="So Deepfake Detector" width={240} height={80} className={styles.logo} />
         </Link>
+        <h1 className={styles.title}>So Deepfake Detector</h1>
         <p className={styles.subtitle}>
           Upload a video to get a deepfake likelihood score, confidence, and flagged timestamps.
         </p>

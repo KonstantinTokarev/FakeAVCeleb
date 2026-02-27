@@ -70,7 +70,7 @@ export default function JobPage() {
 
   const brandBar = (
     <Link href="/" className={styles.brandLink}>
-      <Image src="/logo.png" alt="" width={100} height={40} />
+      <Image src="/logo.png" alt="So Deepfake Detector" width={180} height={60} />
     </Link>
   );
 

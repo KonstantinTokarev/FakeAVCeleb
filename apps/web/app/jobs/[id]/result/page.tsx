@@ -192,8 +192,8 @@ export default function ResultPage() {
   if (error || !result) {
     return (
       <div className={styles.wrapper}>
-        <Link href="/" className={styles.logoLink} aria-label="Deepfake Detector home">
-          <Image src="/logo.png" alt="" width={100} height={40} />
+        <Link href="/" className={styles.logoLink} aria-label="So Deepfake Detector home">
+          <Image src="/logo.png" alt="So Deepfake Detector" width={180} height={60} />
         </Link>
         <h2 className={styles.title}>Unable to load result</h2>
         <p className={styles.muted}>{error || "Not found."}</p>
@@ -217,8 +217,8 @@ export default function ResultPage() {
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className={styles.header}>
-        <Link href="/" className={styles.logoLink} aria-label="Deepfake Detector home">
-          <Image src="/logo.png" alt="" width={100} height={40} />
+        <Link href="/" className={styles.logoLink} aria-label="So Deepfake Detector home">
+          <Image src="/logo.png" alt="So Deepfake Detector" width={180} height={60} />
         </Link>
         <Link href="/" className={styles.backLink}>← New analysis</Link>
         <span className={styles.jobId}>Job {result.job_id.slice(0, 8)}…</span>
