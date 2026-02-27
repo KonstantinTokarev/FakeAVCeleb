@@ -185,7 +185,7 @@ export default function LandingPage() {
           )}
 
           <p className={styles.note}>
-            Privacy: We process your video only to produce the analysis. Files are deleted after the retention period (e.g. 24h). We do not train on your content.
+            Privacy: We process your video only to produce the analysis. Files are deleted after the retention period of 7 days. We do not train on your content.
           </p>
         </div>
       </main>
