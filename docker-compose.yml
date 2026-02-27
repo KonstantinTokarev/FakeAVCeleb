@@ -22,6 +22,7 @@ services:
       - STORAGE_PATH=/data/storage
       - JOB_TTL_HOURS=${JOB_TTL_HOURS:-24}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - MAX_FIRST_FREE_PER_IP_PER_DAY=${MAX_FIRST_FREE_PER_IP_PER_DAY:-3}
     volumes:
       - storage_data:/data/storage
     restart: unless-stopped

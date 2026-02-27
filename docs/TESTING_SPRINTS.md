@@ -141,6 +141,36 @@ PYTHONPATH=.. python3 -m pytest tests/test_sprint6_me_endpoint.py -v
 
 **Expected:** `/api/me` creates an anonymous user if needed; returns `total_completed`, `paid_credits`, and `next_check_free` is **true** for the first check and **false** when the next is paid (2nd, 4th, ...).
 
+## IP rate limit (first free per IP per day)
+
+### Script check (API + Redis must be running)
+
+Run from **project root** (the repo folder that contains `apps/`), then:
+
+```bash
+cd apps/api
+API_URL=http://localhost:8000 PYTHONPATH=.. python3 scripts/check_rate_limit.py
+```
+
+If your shell is currently in `apps/web`, run `cd ../api` first, then the same command.
+
+Sends 4 `POST /api/jobs` (upload) with **different** `X-Anonymous-Id` and **same IP** via `X-Forwarded-For`. **Expected:** first 3 return **200**, 4th returns **429** with `RATE_LIMIT_FIRST_FREE`.
+
+**If all 4 return 200:** restart the API so it loads the rate-limit code (`docker compose up -d --build` or restart uvicorn), then run the script again. Ensure Redis is running (required for the counter).
+
+**Debug:** After each "first free" job, open `GET http://localhost:8000/api/debug/rate-limit` in the browser (or from the same machine). You should see `count` increase (1, 2, 3). When `count` reaches `limit`, the next job create should return 429. If `count` stays 0 or the API returns 200 on the 4th request, the API may be using an old image or a different Redis; rebuild with `docker compose build --no-cache api` and `docker compose up -d api`.
+
+**Reset for testing:** To clear the counter for your IP and get "first free" slots again without waiting for the next day, call **POST** `http://localhost:8000/api/debug/rate-limit/reset` (from the same machine/browser). Then `GET .../api/debug/rate-limit` should show `count: 0`. If you get **404**, restart the API so it loads the latest code (`docker compose up -d --build api` or restart uvicorn).
+
+### Manual check in the browser
+
+1. Start the app (Docker or dev); open http://localhost:3000.
+2. Upload a video → job created (1st free).
+3. Clear site data for localhost (DevTools → Application → Clear storage) to get a new `df_uid`.
+4. Upload again → 2nd free.
+5. Clear storage, upload again → 3rd free.
+6. Clear storage, upload again → **4th** attempt should show the rate-limit message (429): *"Free check limit reached for this network. Try again tomorrow or pay 1 €."*
+
 ---
 
 Later sprints will add their own test files and script checks; run the corresponding tests before starting the next sprint.

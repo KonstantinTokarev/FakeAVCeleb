@@ -12,7 +12,7 @@ from ..models import Job, Result, AnonymousUser
 from ..config import settings
 from ..services.url_validator import validate_url, ValidationError
 from ..services.queue import enqueue_job
-from ..services.rate_limit import get_client_ip, allow_first_free
+from ..services.rate_limit import get_client_ip, allow_first_free, get_first_free_count, reset_first_free_count, _rate_limit_key
 
 router = APIRouter()
 
@@ -70,6 +70,29 @@ async def _get_or_create_anonymous_user(db: AsyncSession, anonymous_id: str) -> 
 def _requires_payment(total_completed: int) -> bool:
     next_number = total_completed + 1
     return (next_number % 2) == 0
+
+
+@router.get("/debug/rate-limit")
+async def debug_rate_limit(request: Request):
+    """Return current first-free count for this request's IP (for verifying rate limit)."""
+    from ..config import settings
+    ip = get_client_ip(request)
+    key = _rate_limit_key(ip)
+    count = await get_first_free_count(ip)
+    return {
+        "ip": ip,
+        "key": key,
+        "count": count,
+        "limit": settings.max_first_free_per_ip_per_day,
+    }
+
+
+@router.post("/debug/rate-limit/reset")
+async def debug_rate_limit_reset(request: Request):
+    """Reset the first-free count for your IP (for testing). Call from same machine/browser as the app."""
+    ip = get_client_ip(request)
+    existed = await reset_first_free_count(ip)
+    return {"ok": True, "message": "Rate limit counter reset for your IP.", "ip": ip, "had_count": existed}
 
 
 @router.get("/me", response_model=MeResponse)
