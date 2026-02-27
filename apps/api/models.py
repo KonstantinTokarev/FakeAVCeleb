@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.sql import func
 import uuid
@@ -10,10 +10,29 @@ def gen_uuid():
     return str(uuid.uuid4())
 
 
+class AnonymousUser(Base):
+    __tablename__ = "anonymous_users"
+
+    id = Column(String(36), primary_key=True)  # UUID from client or server-generated
+    total_completed = Column(Integer, nullable=False, default=0)  # number of DONE jobs
+    paid_credits = Column(Integer, nullable=False, default=0)     # credits from payments
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class StripeProcessedSession(Base):
+    """Idempotency: one row per processed checkout.session.completed."""
+    __tablename__ = "stripe_processed_sessions"
+
+    session_id = Column(String(255), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
+    anonymous_id = Column(String(36), nullable=True)  # FK to anonymous_users.id
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     status = Column(String(32), nullable=False, default="CREATED")

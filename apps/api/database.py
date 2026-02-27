@@ -29,6 +29,7 @@ async def _migrate(conn):
         "ALTER TABLE results ADD COLUMN IF NOT EXISTS sub_scores JSON",
         "ALTER TABLE results ADD COLUMN IF NOT EXISTS findings JSON",
         "ALTER TABLE results ADD COLUMN IF NOT EXISTS flagged_frames JSON",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS anonymous_id VARCHAR(36)",
     ]
     for sql in migrations:
         try:

@@ -314,6 +314,29 @@ Each sprint ends with **testable results** you can verify before moving on.
 
 ---
 
+### Sprint 8: Production deployment  
+**Goal:** App and payment flow are live and reachable online.
+
+| Task | Detail |
+|------|--------|
+| Hosting | Deploy API, worker, and web app to chosen platform (e.g. PaaS: Railway, Render, Fly.io; or VPS + Docker). |
+| Database | Production DB (e.g. managed PostgreSQL); run migrations / init. |
+| Redis | Production Redis for job queue (managed or same host). |
+| Stripe live | Create live product/price (1 EUR); set live API keys and webhook endpoint in Stripe Dashboard. |
+| Env and secrets | Set in prod: `DATABASE_URL`, `REDIS_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `ALLOWED_ORIGINS` (prod domain). |
+| Webhook URL | Register `https://your-api-domain.com/api/webhooks/stripe` in Stripe; verify webhook secret. |
+| Domain and TLS | Point domain to API and web; ensure HTTPS. |
+| Smoke test | In prod: create job (free), complete flow; pay 1 € (live or test card if still testing); verify credit and 3rd free. |
+
+**Testable results**
+
+- [ ] API and web are reachable over HTTPS at production URLs.
+- [ ] First analysis (free) runs end-to-end in prod.
+- [ ] Payment (1 €) completes; webhook receives event; user gets credit; second analysis runs.
+- [ ] Third analysis is free again.
+
+---
+
 ### Sprint summary
 
 | Sprint | Focus | Main testable outcome |
@@ -325,6 +348,7 @@ Each sprint ends with **testable results** you can verify before moving on.
 | 5 | Frontend ID + 402 + Pay flow | Cookie/ID stable; 402 → “Pay 1 €” → Stripe → success page. |
 | 6 | /api/me + “Next check” UI | Correct “free” / “1 €” label. |
 | 7 | E2E + edge cases | Full free/paid cycle; no double-spend; idempotent webhook. |
+| 8 | Production deployment | App live; HTTPS; Stripe live; free → pay → free works in prod. |
 
 ---
 

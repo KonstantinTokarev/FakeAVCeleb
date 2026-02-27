@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, HttpUrl
@@ -8,7 +8,7 @@ import uuid
 import os
 
 from ..database import get_db
-from ..models import Job, Result
+from ..models import Job, Result, AnonymousUser
 from ..config import settings
 from ..services.url_validator import validate_url, ValidationError
 from ..services.queue import enqueue_job
@@ -25,6 +25,7 @@ class JobCreateBody(BaseModel):
 class JobCreateResponse(BaseModel):
     job_id: str
     status: str
+    anonymous_id: Optional[str] = None  # set when server generated new ID for client to store
 
 
 class JobStatusResponse(BaseModel):
@@ -36,19 +37,89 @@ class JobStatusResponse(BaseModel):
     result_id: Optional[str] = None
 
 
+class MeResponse(BaseModel):
+    anonymous_id: str
+    total_completed: int
+    paid_credits: int
+    next_check_free: bool
+
+def _parse_anonymous_id(x_anonymous_id: Optional[str]) -> tuple[str, bool]:
+    """Return (anonymous_id, was_provided). If invalid or missing, generate new UUID."""
+    if not x_anonymous_id or not x_anonymous_id.strip():
+        return str(uuid.uuid4()), False
+    try:
+        uid = uuid.UUID(x_anonymous_id.strip())
+        return str(uid), True
+    except (ValueError, TypeError):
+        return str(uuid.uuid4()), False
+
+
+async def _get_or_create_anonymous_user(db: AsyncSession, anonymous_id: str) -> AnonymousUser:
+    result = await db.execute(select(AnonymousUser).where(AnonymousUser.id == anonymous_id))
+    user = result.scalar_one_or_none()
+    if user:
+        return user
+    user = AnonymousUser(id=anonymous_id)
+    db.add(user)
+    await db.flush()
+    return user
+
+
+# 1st free, 2nd 1 EUR, 3rd free, 4th 1 EUR, ...
+def _requires_payment(total_completed: int) -> bool:
+    next_number = total_completed + 1
+    return (next_number % 2) == 0
+
+
+@router.get("/me", response_model=MeResponse)
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    x_anonymous_id: Optional[str] = Header(None, alias="X-Anonymous-Id"),
+):
+    anonymous_id, _ = _parse_anonymous_id(x_anonymous_id)
+    user = await _get_or_create_anonymous_user(db, anonymous_id)
+    return MeResponse(
+        anonymous_id=anonymous_id,
+        total_completed=user.total_completed,
+        paid_credits=user.paid_credits,
+        next_check_free=not _requires_payment(user.total_completed),
+    )
+
+
 @router.post("/jobs", response_model=JobCreateResponse)
-async def create_job(body: JobCreateBody, db: AsyncSession = Depends(get_db)):
+async def create_job(
+    body: JobCreateBody,
+    db: AsyncSession = Depends(get_db),
+    x_anonymous_id: Optional[str] = Header(None, alias="X-Anonymous-Id"),
+):
     if body.input_type == "link" and not body.input_url:
         raise HTTPException(status_code=400, detail="input_url required for link")
     if body.input_type == "upload":
         # Client must then call POST /jobs/{id}/upload
         pass
 
+    anonymous_id, was_provided = _parse_anonymous_id(x_anonymous_id)
+    user = await _get_or_create_anonymous_user(db, anonymous_id)
+
+    if _requires_payment(user.total_completed):
+        if user.paid_credits <= 0:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "PAYMENT_REQUIRED",
+                    "amount_eur": 1,
+                    "message": "This check costs 1 €",
+                },
+            )
+        user.paid_credits -= 1
+        await db.flush()
+
     job = Job(
         status="CREATED",
         input_type=body.input_type,
         input_url=str(body.input_url) if body.input_url else None,
         options=body.options or {},
+        anonymous_id=anonymous_id,
     )
     db.add(job)
     await db.flush()
@@ -61,10 +132,18 @@ async def create_job(body: JobCreateBody, db: AsyncSession = Depends(get_db)):
         job.status = "FETCHING"
         await db.commit()
         await enqueue_job(job.id)
-        return JobCreateResponse(job_id=job.id, status=job.status)
+        return JobCreateResponse(
+            job_id=job.id,
+            status=job.status,
+            anonymous_id=None if was_provided else anonymous_id,
+        )
 
     await db.commit()
-    return JobCreateResponse(job_id=job.id, status="CREATED")
+    return JobCreateResponse(
+        job_id=job.id,
+        status="CREATED",
+        anonymous_id=None if was_provided else anonymous_id,
+    )
 
 
 @router.post("/jobs/{job_id}/upload", response_model=JobCreateResponse)

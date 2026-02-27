@@ -67,6 +67,44 @@
   margin: 1rem 0 0 0;
 }
 
+.payBox {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.payBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payHint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.nextHint {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .note {
   margin: 1.25rem 0 0 0;
   font-size: 0.8rem;

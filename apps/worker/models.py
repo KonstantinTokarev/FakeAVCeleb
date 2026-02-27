@@ -14,6 +14,7 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
+    anonymous_id = Column(String(36), nullable=True)  # links to anonymous_users.id for pricing
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     status = Column(String(32), nullable=False, default="CREATED")

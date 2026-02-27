@@ -6,7 +6,7 @@ Step 2 — Type-aware model selection (this file, _model_config)
 Step 3 — Inference passes           (inference_*.py modules)
 Step 4 — Plain-English explanation  (inference_explain.py)
 """
-from sqlalchemy import select
+from sqlalchemy import select, text
 from worker.db import AsyncSessionLocal
 from worker.config import settings
 from worker.download import download_video, DownloadError
@@ -519,6 +519,11 @@ async def run_pipeline(job_id: str):
             job.progress_step = "DONE"
             job.progress_done = "6"
             job.progress_total = "6"
+            if job.anonymous_id:
+                await db.execute(
+                    text("UPDATE anonymous_users SET total_completed = total_completed + 1 WHERE id = :aid"),
+                    {"aid": job.anonymous_id},
+                )
             await db.commit()
 
         except DownloadError as e:
