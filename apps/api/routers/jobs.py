@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, HttpUrl
@@ -12,6 +12,7 @@ from ..models import Job, Result, AnonymousUser
 from ..config import settings
 from ..services.url_validator import validate_url, ValidationError
 from ..services.queue import enqueue_job
+from ..services.rate_limit import get_client_ip, allow_first_free
 
 router = APIRouter()
 
@@ -88,6 +89,7 @@ async def get_me(
 
 @router.post("/jobs", response_model=JobCreateResponse)
 async def create_job(
+    request: Request,
     body: JobCreateBody,
     db: AsyncSession = Depends(get_db),
     x_anonymous_id: Optional[str] = Header(None, alias="X-Anonymous-Id"),
@@ -100,6 +102,18 @@ async def create_job(
 
     anonymous_id, was_provided = _parse_anonymous_id(x_anonymous_id)
     user = await _get_or_create_anonymous_user(db, anonymous_id)
+
+    # Rate limit: max N "first free" jobs per IP per day (reduces cookie-clear abuse)
+    if user.total_completed == 0:
+        ip = get_client_ip(request)
+        if not await allow_first_free(ip):
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "code": "RATE_LIMIT_FIRST_FREE",
+                    "message": "Free check limit reached for this network. Try again tomorrow or pay 1 € for an analysis.",
+                },
+            )
 
     if _requires_payment(user.total_completed):
         if user.paid_credits <= 0:

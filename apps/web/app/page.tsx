@@ -71,6 +71,11 @@ export default function LandingPage() {
         setUploading(false);
         return;
       }
+      if (res.status === 429) {
+        setError(data.detail?.message || "Free check limit reached for this network. Try again tomorrow or pay 1 €.");
+        setUploading(false);
+        return;
+      }
       if (res.status === 402) {
         setPaymentRequired(true);
         setError(data.detail?.message || "Payment required (1 €)");

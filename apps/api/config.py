@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     stripe_price_id: str | None = None
     payment_success_url: str = "http://localhost:3000/payment/success"
     payment_cancel_url: str = "http://localhost:3000"
+    # Rate limit: max "first free" job creations per IP per day (reduces cookie-clear abuse)
+    max_first_free_per_ip_per_day: int = 3
 
     @property
     def cors_origins(self) -> list[str]:

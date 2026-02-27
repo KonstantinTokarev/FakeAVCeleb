@@ -83,6 +83,10 @@ Copy `.env.example` to `.env` and configure:
 | `JOB_TTL_HOURS` | Hours before jobs are cleaned up | No (default 24) |
 | `MAX_UPLOAD_BYTES` | Max upload size in bytes | No (default 200 MB) |
 | `MAX_VIDEO_SECONDS` | Max video duration to process | No (default 300 s) |
+| `MAX_FIRST_FREE_PER_IP_PER_DAY` | Max “first free” analyses per IP per day (rate limit) | No (default 3) |
+| Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) | For 1 € payment | No (payment disabled if unset) |
+
+**Abuse mitigation:** Users are identified by an anonymous ID (cookie/localStorage). Clearing cookies lets them get another free first check. To limit that, the API rate-limits how many “first free” jobs can be created per IP per day (see `MAX_FIRST_FREE_PER_IP_PER_DAY`). When exceeded, the API returns 429 and the UI shows a message to try again tomorrow or pay 1 €.
 
 ### 2. Deploy
 
